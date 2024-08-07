@@ -412,7 +412,6 @@ function createChatWidget() {
 
 
     // chat input
-
     var chatInputContainer = document.createElement("div");
     chatInputContainer.setAttribute("id", "chat-container");
     chatInputContainer.className = "mt-auto p-4";
