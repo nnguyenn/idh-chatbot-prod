@@ -331,7 +331,7 @@ function createChatWidget() {
     // Welcome text
     var welcomeText = document.createElement("div");
     welcomeText.setAttribute("id", "welcome-text");
-    welcomeText.innerText = "Hello! This is your personal Palm Grove Furniture chatbot.";
+    welcomeText.innerText = "Hello! This is your personal Island Detail Hawaii chatbot.";
     document.body.appendChild(welcomeText);
     
     // Function to check if the current page is the homepage
