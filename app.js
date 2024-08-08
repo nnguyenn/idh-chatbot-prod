@@ -312,33 +312,12 @@ function createChatWidget() {
             }
         }
         
-        @keyframes unravel {
-            0% {
-                height: 0;
-                opacity: 0;
-            }
-            100% {
-                height: 80%;
-                opacity: 1;
-            }
-        }
-
-        @keyframes ravel {
-            0% {
-                height: 80%;
-                opacity: 1;
-            }
-            100% {
-                height: 0;
-                opacity: 0;
-            }
-        }
-    
         #chat-widget {
-            height: 0;
+            transform: scale(0);
             opacity: 0;
-            overflow: hidden;
-            animation: unravel 0.5s forwards;
+            display: none;
+            transform-origin: bottom right;
+            transition: transform 0.5s ease, opacity 0.5s ease;
         }
     `;
     document.head.appendChild(styleElement);
@@ -450,22 +429,33 @@ function toggleChatWidget() {
     var notificationCircle = document.getElementById("notification-circle");
     var welcomeText = document.getElementById("welcome-text");
 
-    if (chatWidget.style.display === "none") {
+    if (chatWidget.style.display === "none" || chatWidget.style.display === "") {
+        // Maximize the chat widget from bottom right
         chatWidget.style.display = "flex";
-        chatWidget.style.animation = "none"; // Reset animation
-        chatWidget.offsetHeight; // Trigger reflow
-        chatWidget.style.animation = "unravel 0.5s forwards"; // Apply unravel animation
+        requestAnimationFrame(() => {
+            chatWidget.style.transformOrigin = "bottom right";
+            chatWidget.style.transform = "scale(1)";
+            chatWidget.style.opacity = "1";
+        });
+        // Change the icon to exit
         circleIcon.innerHTML = exitLogoSVG;
-        notificationCircle.style.display = "none";
-        if (welcomeText) {
-            welcomeText.style.display = "none"; // Hide welcome text on click
-        }
+
+        // Hide the notification and welcome text
+        if (notificationCircle) notificationCircle.style.display = "none";
+        if (welcomeText) welcomeText.style.display = "none";
+
     } else {
-        chatWidget.style.animation = "ravel 0.5s forwards"; // Apply ravel animation
+        // Minimize the chat widget to bottom right
+        chatWidget.style.transformOrigin = "bottom right";
+        chatWidget.style.transform = "scale(0)";
+        chatWidget.style.opacity = "0";
+        chatWidget.style.transition = "transform 0.5s ease, opacity 0.5s ease";
+
         setTimeout(() => {
             chatWidget.style.display = "none";
+            // Change the icon back to chat
             circleIcon.innerHTML = chatLogoSVG;
-        }, 500); // Match the duration of the ravel animation
+        }, 500); // Match the duration of the transition
     }
 }
 
@@ -493,10 +483,18 @@ function createCircleIcon() {
     circleIcon.style.color = "#fff";
     circleIcon.style.fontSize = "24px";
     circleIcon.style.zIndex = "1000";
+    circleIcon.style.transition = "transform 0.2s ease";
 
     circleIcon.innerHTML = chatLogoSVG;
 
-    circleIcon.addEventListener("click", toggleChatWidget);
+    // Shrink the icon when clicked and stay small when held
+    circleIcon.addEventListener("mousedown", () => {
+        circleIcon.style.transform = "scale(0.8)";
+    });
+    circleIcon.addEventListener("mouseup", () => {
+        circleIcon.style.transform = "scale(1)";
+        toggleChatWidget();
+    });
 
     document.body.appendChild(circleIcon);
 }
