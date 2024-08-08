@@ -30,7 +30,7 @@ const chatEndpointURL = 'https://us-central1-idh-chatbot-prod.cloudfunctions.net
 // track conversation with array
 const chatList = [{
     role: "bot",
-    text: "Hey there! How can I help you today?"
+    text: "Aloha! How can I help you today? 🤙"
 }]
 
 function scrollToBottom(containerId) {
@@ -49,15 +49,7 @@ function pushNewUserChat(chatText) {
     renderChats();
     scrollToBottom('conversation-scroll-container');
 
-    // Check the last bot message
-    const lastBotMessage = chatList.slice().reverse().find(chat => chat.role === "bot").text;
-
-    if (lastBotMessage === "Great, can you describe your ideal piece?\n") {
-        // If the last bot message is the question, search Google Sheets
-        initiateStreamConnection(chatEndpointURL, { query: chatText, context: 'describe_ideal_piece' });
-    } else {
-        submitChat(chatText);
-    }
+    submitChat(chatText);
 }
 
 function createNewResponse(extraClass = '') {
@@ -98,17 +90,22 @@ async function handleStreamResponse(response) {
             if (done) {
                 hideLoadingDots();
                 console.log("Stream done, accumulated response text:", accumulatedResponse);
-                if (accumulatedResponse) {
-                    responseElement.classList.remove('partial-response');
+
+                // Check if the response contains the booking link
+                if (accumulatedResponse.includes('https://book.islanddetailhawaii.com')) {
                     const formattedText = formatTextWithLinks(accumulatedResponse.replace(/\n/g, '<br>'));
-                    console.log("Final formatted response:", formattedText);
                     responseElement.innerHTML = formattedText;
-                    chatList.push({
-                        role: "bot",
-                        text: accumulatedResponse // Store the plain text response
-                    });
-                    renderChats();
+                    console.log("EXECUETSFASDKFSDFAS");
+                } else {
+                    const formattedText = formatTextWithLinks(accumulatedResponse.replace(/\n/g, '<br>'));
+                    responseElement.innerHTML = formattedText;
                 }
+
+                chatList.push({
+                    role: "bot",
+                    text: accumulatedResponse // Store the plain text response
+                });
+                renderChats();
                 break;
             }
             responseText += decoder.decode(value, { stream: true });
@@ -123,6 +120,7 @@ async function handleStreamResponse(response) {
         }
     }
 }
+
 
 
 
@@ -149,20 +147,17 @@ function handlePlainTextResponse(text, isFinal) {
 }
 
 function formatTextWithLinks(text) {
-    // Create regex patterns for matching phone numbers, addresses, and emails
-    const phonePattern = /(\(\d{3}\)\s*\d{3}-\d{4})/g;
-    const addressPattern = /(916 Kaaahi Pl, Honolulu, HI 96817)/g;
-    const emailPattern = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
+    // Create regex patterns for matching phone numbers, addresses, and book now links
+    const phonePattern = /808-460-6985/g;  // Island Detail Hawaii phone number
+    const bookNowPattern = /(https:\/\/book\.islanddetailhawaii\.com)/gi;
 
     // Replace matched patterns with corresponding HTML links
     const formattedText = text
-        .replace(phonePattern, '<a href="tel:$1" class="underline">$1</a>')
-        .replace(addressPattern, '<a href="https://www.google.com/maps?q=$1" target="_blank" class="underline">$1</a>')
-        .replace(emailPattern, '<a href="mailto:$1" class="underline">$1</a>');
+        .replace(phonePattern, '<a href="tel:808-460-6985" class="underline">$&</a>')
+        .replace(bookNowPattern, '<a href="$1" target="_blank" class="underline">$1</a>');
 
     return formattedText;
 }
-
 
 // Function to initiate connection and handle stream
 async function initiateStreamConnection(url, data) {
@@ -202,14 +197,14 @@ function createChatWidget() {
     chatWidget.setAttribute("id", "chat-widget");
 
     // Add styling classes for responsiveness 
-    chatWidget.className = "rounded-lg border bg-card text-card-foreground shadow-sm justify-between flex-col bg-white ml-4 md:ml-0 h-3/4 md:h-[550px] lg:h-[664px]";
+    chatWidget.className = "rounded-lg border bg-card text-card-foreground shadow-sm justify-between flex-col bg-white ml-4 md:ml-0 h-3/4 md:h-[550px] lg:h-[764px]";
 
     // Style chat widget
     chatWidget.style.position = "fixed";
     chatWidget.style.bottom = "84px";
     chatWidget.style.right = "20px";
     chatWidget.style.maxWidth = "400px";
-    chatWidget.style.maxHeight = "664px";
+    chatWidget.style.maxHeight = "764px";
     chatWidget.style.zIndex = "1000";
     chatWidget.style.display = "none"; // Hide initially
 
@@ -228,7 +223,7 @@ function createChatWidget() {
         <div id="conversation-scroll-container" class="flex-grow p-4 grid gap-4 justify-self-end overflow-y-scroll" data-id="10">
             <div id="conversation-container" class="space-y-2" data-id="11">
                 <div class="rounded-tl-lg rounded-tr-lg rounded-br-lg p-2 bg-gray-800 text-white dark:bg-gray-800" data-id="12">
-                    Hey there! What are you looking for today?
+                    Aloha! How can I help you today?
                 </div>
             </div>
         </div>`;
@@ -323,14 +318,14 @@ function createChatWidget() {
                 opacity: 0;
             }
             100% {
-                height: 70%;
+                height: 80%;
                 opacity: 1;
             }
         }
 
         @keyframes ravel {
             0% {
-                height: 70%;
+                height: 80%;
                 opacity: 1;
             }
             100% {
@@ -396,7 +391,7 @@ function createChatWidget() {
     chatChipsContainer.setAttribute("id", "chips-container");
     chatChipsContainer.className = "flex flex-row space-x-0.5 sm:space-x-1 md:space-x-2 px-0.5 sm:px-1 md:px-2 pt-2";
 
-    const chipsText = ["Tell me about Island Detail", "I have a question", "Gift cards?"]
+    const chipsText = ["Services", "Fleets", "Book Now"]
     chipsText.forEach((text) => {
         var chatChip = document.createElement("div");
         chatChip.className = "text-gray-800 px-3 py-1 rounded-full flex-grow text-xs text-center border-4 border-gray-600 hover:bg-gray-600 hover:text-white cursor-pointer";
