@@ -391,7 +391,7 @@ function createChatWidget() {
     chatChipsContainer.setAttribute("id", "chips-container");
     chatChipsContainer.className = "flex flex-row space-x-0.5 sm:space-x-1 md:space-x-2 px-0.5 sm:px-1 md:px-2 pt-2";
 
-    const chipsText = ["Services", "Fleets", "Book Now"]
+    const chipsText = ["Services", "Fleet Cleaning", "Book Now"]
     chipsText.forEach((text) => {
         var chatChip = document.createElement("div");
         chatChip.className = "text-gray-800 px-3 py-1 rounded-full flex-grow text-xs text-center border-4 border-gray-600 hover:bg-gray-600 hover:text-white cursor-pointer";
