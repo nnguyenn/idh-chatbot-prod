@@ -67,12 +67,25 @@ function createNewResponse(extraClass = '') {
 function showLoadingDots() {
     var loadingDots = document.getElementById("loading-dots");
     loadingDots.style.display = "block";
+    chatSendBtn.disabled = true;
+    chatInputEl.disabled = true;
+    isGeneratingResponse = true;
 }
 
 function hideLoadingDots() {
     var loadingDots = document.getElementById("loading-dots");
     loadingDots.style.display = "none";
 }
+
+var chatSendBtn = document.createElement("button");
+chatSendBtn.className = "inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-gray-200 bg-background hover:bg-accent hover:text-accent-foreground px-4 py-2 rounded-full h-10";
+chatSendBtn.innerHTML = chatSendSVG;
+
+let isGeneratingResponse = false;
+
+var chatInputEl = document.createElement("input");
+chatInputEl.className = "flex h-10 w-full border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex-1 min-w-0 rounded-full"
+chatInputEl.placeholder = "Type a message..."
 
 // Function to handle receiving text stream data
 async function handleStreamResponse(response) {
@@ -85,21 +98,21 @@ async function handleStreamResponse(response) {
     const responseElement = createNewResponse('partial-response');
 
     while (true) {
+        hideLoadingDots();
+        chatSendBtn.disabled = true;
+        chatInputEl.disabled = true;
+        isGeneratingResponse = true;
         try {
             const { done, value } = await reader.read();
             if (done) {
-                hideLoadingDots();
                 console.log("Stream done, accumulated response text:", accumulatedResponse);
+                // Re-enable input and send button after response generation is complete
+                chatSendBtn.disabled = false;
+                chatInputEl.disabled = false;
+                isGeneratingResponse = false;
 
-                // Check if the response contains the booking link
-                if (accumulatedResponse.includes('https://book.islanddetailhawaii.com')) {
-                    const formattedText = formatTextWithLinks(accumulatedResponse.replace(/\n/g, '<br>'));
-                    responseElement.innerHTML = formattedText;
-                    console.log("EXECUETSFASDKFSDFAS");
-                } else {
-                    const formattedText = formatTextWithLinks(accumulatedResponse.replace(/\n/g, '<br>'));
-                    responseElement.innerHTML = formattedText;
-                }
+                const formattedText = formatTextWithLinks(accumulatedResponse.replace(/\n/g, '<br>'));
+                responseElement.innerHTML = formattedText;
 
                 chatList.push({
                     role: "bot",
@@ -116,7 +129,11 @@ async function handleStreamResponse(response) {
             scrollToBottom('conversation-scroll-container');
         } catch (error) {
             console.error('Error reading stream:', error);
-            hideLoadingDots();
+            // Re-enable input and send button even if there's an error
+            chatSendBtn.disabled = false;
+            chatInputEl.disabled = false;
+            isGeneratingResponse = false;
+            break;
         }
     }
 }
@@ -394,17 +411,18 @@ function createChatWidget() {
     chatInputBar.setAttribute("id", "chat-bar");
     chatInputBar.className = "flex space-x-2";
 
-    var chatInputEl = document.createElement("input");
-    chatInputEl.className = "flex h-10 w-full border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex-1 min-w-0 rounded-full"
-    chatInputEl.placeholder = "Type a message..."
-
-    var chatSendBtn = document.createElement("button");
-    chatSendBtn.className = "inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-gray-200 bg-background hover:bg-accent hover:text-accent-foreground px-4 py-2 rounded-full h-10";
-    chatSendBtn.innerHTML = chatSendSVG;
-
 
     function processChat() {
-        const chatText = chatInputEl.value;
+        const chatText = chatInputEl.value.trim();
+    
+        if (chatText === '' || isGeneratingResponse) {
+            return;
+        }
+    
+        chatSendBtn.disabled = true;
+        chatInputEl.disabled = true;
+        isGeneratingResponse = true;
+    
         pushNewUserChat(chatText);
         chatInputEl.value = "";
         scrollToBottom('conversation-scroll-container');
