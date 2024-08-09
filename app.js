@@ -203,7 +203,7 @@ function createChatWidget() {
     chatWidget.style.position = "fixed";
     chatWidget.style.bottom = "84px";
     chatWidget.style.right = "20px";
-    chatWidget.style.maxWidth = "400px";
+    chatWidget.style.width = "400px";
     chatWidget.style.maxHeight = "764px";
     chatWidget.style.zIndex = "1000";
     chatWidget.style.display = "none"; // Hide initially
@@ -238,7 +238,7 @@ function createChatWidget() {
         .underline:hover {
             color: #476DC2;
         }
-
+        
         #notification-circle {
             position: fixed;
             bottom: 55px; 
@@ -331,7 +331,7 @@ function createChatWidget() {
     // Welcome text
     var welcomeText = document.createElement("div");
     welcomeText.setAttribute("id", "welcome-text");
-    welcomeText.innerText = "Hello! This is your personal Island Detail Hawaii chatbot.";
+    welcomeText.innerText = "Aloha! This is your personal Island Detail Assistant";
     document.body.appendChild(welcomeText);
     
     // Function to check if the current page is the homepage
@@ -399,8 +399,9 @@ function createChatWidget() {
     chatInputEl.placeholder = "Type a message..."
 
     var chatSendBtn = document.createElement("button");
-    chatSendBtn.className = "inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground px-4 py-2 rounded-full h-10"
+    chatSendBtn.className = "inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-gray-200 bg-background hover:bg-accent hover:text-accent-foreground px-4 py-2 rounded-full h-10";
     chatSendBtn.innerHTML = chatSendSVG;
+
 
     function processChat() {
         const chatText = chatInputEl.value;
