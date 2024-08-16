@@ -165,12 +165,12 @@ function handlePlainTextResponse(text, isFinal) {
 
 function formatTextWithLinks(text) {
     // Create regex patterns for matching phone numbers, addresses, and book now links
-    const phonePattern = /808-460-6985/g;  // Island Detail Hawaii phone number
+    const phonePattern = /808-460-6983/g;  // Island Detail Hawaii phone number
     const bookNowPattern = /(https:\/\/book\.islanddetailhawaii\.com)/gi;
 
     // Replace matched patterns with corresponding HTML links
     const formattedText = text
-        .replace(phonePattern, '<a href="tel:808-460-6985" class="underline">$&</a>')
+        .replace(phonePattern, '<a href="tel:808-460-6983" class="underline">$&</a>')
         .replace(bookNowPattern, '<a href="$1" target="_blank" class="underline">$1</a>');
 
     return formattedText;
@@ -387,7 +387,7 @@ function createChatWidget() {
     chatChipsContainer.setAttribute("id", "chips-container");
     chatChipsContainer.className = "flex flex-row space-x-0.5 sm:space-x-1 md:space-x-2 px-0.5 sm:px-1 md:px-2 pt-2";
 
-    const chipsText = ["Services", "Fleet Cleaning", "Book Now"]
+    const chipsText = ["Detailing", "Ceramic Coating", "Book Now"]
     chipsText.forEach((text) => {
         var chatChip = document.createElement("div");
         chatChip.className = "text-gray-800 px-3 py-1 rounded-full flex-grow text-xs text-center border-4 border-gray-600 hover:bg-gray-600 hover:text-white cursor-pointer";
@@ -426,6 +426,7 @@ function createChatWidget() {
         pushNewUserChat(chatText);
         chatInputEl.value = "";
         scrollToBottom('conversation-scroll-container');
+
     }
 
     chatSendBtn.addEventListener("click", processChat);
