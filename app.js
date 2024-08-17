@@ -49,7 +49,41 @@ function pushNewUserChat(chatText) {
     renderChats();
     scrollToBottom('conversation-scroll-container');
 
-    submitChat(chatText);
+    // Check the last bot message
+    const lastBotMessage = chatList.slice().reverse().find(chat => chat.role === "bot").text;
+
+    // Start form capture process if we're at the appropriate step
+    if (lastBotMessage.includes("Would you like to get in contact for booking an appointment?")) {
+        if (chatText.toLowerCase() === "yes" || chatText.toLowerCase() === "yea" || chatText.toLowerCase() === "yeah") {
+            // User confirmed, start form capture
+            initiateStreamConnection(chatEndpointURL, { query: chatText, context: 'start_form_capture' });
+        } else {
+            // If user says no, end the flow
+            initiateStreamConnection(chatEndpointURL, { query: chatText });
+        }
+    } else if (lastBotMessage.includes("What is your name?") ||
+               lastBotMessage.includes("What is your phone number?") ||
+               lastBotMessage.includes("What is your email address?") ||
+               lastBotMessage.includes("What is the make of your car?") ||
+               lastBotMessage.includes("What is the model of your car?") ||
+               lastBotMessage.includes("What is the year of your car?")) {
+        // Handle form questions
+        initiateStreamConnection(chatEndpointURL, { query: chatText, context: 'form_capture' });
+    } else if (lastBotMessage.includes("Is this correct? (yes/no)")) {
+        // Handle form confirmation
+        if (chatText.toLowerCase() === "yes" || chatText.toLowerCase() === "yea" || chatText.toLowerCase() === "yeah") {
+            initiateStreamConnection(chatEndpointURL, { query: chatText, context: 'confirm_form' });
+        } else {
+            chatList.push({
+                role: "bot",
+                text: "No worries! We are always here if you change your mind."
+            });
+            renderChats();
+            scrollToBottom('conversation-scroll-container');
+        }
+    } else {
+        submitChat(chatText);
+    }
 }
 
 function createNewResponse(extraClass = '') {
@@ -387,7 +421,7 @@ function createChatWidget() {
     chatChipsContainer.setAttribute("id", "chips-container");
     chatChipsContainer.className = "flex flex-row space-x-0.5 sm:space-x-1 md:space-x-2 px-0.5 sm:px-1 md:px-2 pt-2";
 
-    const chipsText = ["Detailing", "Ceramic Coating", "Book Now"]
+    const chipsText = ["Detailing", "Services", "Book Now"]
     chipsText.forEach((text) => {
         var chatChip = document.createElement("div");
         chatChip.className = "text-gray-800 px-3 py-1 rounded-full flex-grow text-xs text-center border-4 border-gray-600 hover:bg-gray-600 hover:text-white cursor-pointer";
