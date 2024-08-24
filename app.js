@@ -47,6 +47,8 @@ function scrollToBottom(containerId) {
     console.log('scrolling down', container.scrollHeight);
 }
 
+let currentStep = 0; // Track the current step locally
+
 function pushNewUserChat(chatText) {
     chatList.push({
         role: "user",
@@ -59,22 +61,33 @@ function pushNewUserChat(chatText) {
     // Check the last bot message
     const lastBotMessage = chatList.slice().reverse().find(chat => chat.role === "bot").text;
 
+    let currentContext = window.currentContext || {"context": "", "step": 0};
+
+    // Start form capture process if we're at the appropriate step
     if (lastBotMessage.includes("Would you like to get in contact for booking an appointment?")) {
         if (chatText.toLowerCase() === "yes" || chatText.toLowerCase() === "yea" || chatText.toLowerCase() === "yeah") {
-            initiateStreamConnection(chatEndpointURL, { query: chatText, context: 'start_form_capture' });
+            // User confirmed, start form capture
+            currentContext.context = 'start_form_capture';
+            currentContext.step = 0; // Reset to initial step for form capture
+            initiateStreamConnection(chatEndpointURL, { query: chatText, context: currentContext });
         } else {
-            initiateStreamConnection(chatEndpointURL, { query: chatText });
+            // If user says no, end the flow
+            initiateStreamConnection(chatEndpointURL, { query: chatText, context: currentContext });
         }
-    } else if (globalContext.context === 'form_capture' || lastBotMessage.includes("What is your name?") ||
+    } else if (lastBotMessage.includes("What is your name?") ||
                lastBotMessage.includes("What is your phone number?") ||
                lastBotMessage.includes("What is your email address?") ||
                lastBotMessage.includes("What is the make of your car?") ||
                lastBotMessage.includes("What is the model of your car?") ||
                lastBotMessage.includes("What is the year of your car?")) {
-        initiateStreamConnection(chatEndpointURL, { query: chatText, context: globalContext.context || 'form_capture' });
+        // Handle form questions
+        currentContext.context = 'form_capture';
+        initiateStreamConnection(chatEndpointURL, { query: chatText, context: currentContext });
     } else if (lastBotMessage.includes("Is this correct? (yes/no)")) {
+        // Handle form confirmation
         if (chatText.toLowerCase() === "yes" || chatText.toLowerCase() === "yea" || chatText.toLowerCase() === "yeah") {
-            initiateStreamConnection(chatEndpointURL, { query: chatText, context: 'confirm_form' });
+            currentContext.context = 'confirm_form';
+            initiateStreamConnection(chatEndpointURL, { query: chatText, context: currentContext });
         } else {
             chatList.push({
                 role: "bot",
@@ -88,17 +101,24 @@ function pushNewUserChat(chatText) {
     }
 }
 
+
+
+
+
 function createNewResponse(extraClass = '') {
     var convoContainer = document.getElementById("conversation-container");
 
+    // Create a new div for the bot response
     var botResponse = document.createElement("div");
     botResponse.className = `rounded-tl-lg rounded-tr-lg rounded-br-lg p-2 bg-gray-800 text-white dark:bg-gray-800 ${extraClass}`;
-    botResponse.innerHTML = '';
+    botResponse.innerHTML = ''; // Start empty
 
+    // Append the new response div to the conversation container
     convoContainer.appendChild(botResponse);
 
     return botResponse;
 }
+
 
 function showLoadingDots() {
     var loadingDots = document.getElementById("loading-dots");
@@ -124,6 +144,7 @@ chatInputEl.className = "flex h-10 w-full border border-input bg-background px-3
 chatInputEl.placeholder = "Type a message..."
 
 // Function to handle receiving text stream data
+// Modify handleStreamResponse function to parse JSON
 async function handleStreamResponse(response) {
     showLoadingDots();
     const reader = response.body.getReader();
@@ -147,12 +168,30 @@ async function handleStreamResponse(response) {
                 chatInputEl.disabled = false;
                 isGeneratingResponse = false;
 
-                // Directly use plain text for the bot's response
-                responseElement.innerHTML = formatTextWithLinks(accumulatedResponse.replace(/\n/g, '<br>'));
+                let responseData;
+                try {
+                    responseData = JSON.parse(accumulatedResponse);
+                    console.log("Parsed response data:", responseData); // Add debug log here
+                } catch (error) {
+                    console.error('Error parsing JSON:', error);
+                    responseElement.innerHTML = formatTextWithLinks(accumulatedResponse.replace(/\n/g, '<br>'));
+                    chatList.push({
+                        role: "bot",
+                        text: accumulatedResponse  // Store plain text response
+                    });
+                    renderChats();
+                    break;
+                }
+
+                const botResponse = responseData.response;
+                const updatedContext = responseData.context;
+
+                // Update context globally for subsequent requests
+                window.currentContext = updatedContext;
 
                 chatList.push({
                     role: "bot",
-                    text: accumulatedResponse  // Store the plain text response
+                    text: botResponse
                 });
 
                 renderChats();
@@ -174,6 +213,8 @@ async function handleStreamResponse(response) {
         }
     }
 }
+
+
 
 
 function handlePlainTextResponse(text, isFinal) {
@@ -551,11 +592,21 @@ function createCircleIcon() {
 
 function renderChats() {
     var convoContainer = document.getElementById("conversation-container");
+
+    // Clear the conversation container before re-rendering all messages
     convoContainer.innerHTML = "";
-    
+
     chatList.forEach((chat) => {
         var newChat = document.createElement("div");
-        newChat.innerHTML = formatTextWithLinks(chat.text.replace(/\n/g, '<br>')); // Replace newlines with <br> and format links
+
+        // Ensure chat.text is always a string
+        let chatText = chat.text;
+        if (typeof chatText !== 'string') {
+            console.error('Expected chat.text to be a string but found:', typeof chatText);
+            chatText = JSON.stringify(chatText); // Convert object to string
+        }
+
+        newChat.innerHTML = formatTextWithLinks(chatText.replace(/\n/g, '<br>')); // Replace newlines with <br> and format links
 
         if (chat.role === "bot") {
             newChat.className = "rounded-tl-lg rounded-tr-lg rounded-br-lg p-2 bg-gray-800 text-white dark:bg-gray-800";
@@ -565,6 +616,11 @@ function renderChats() {
         convoContainer.appendChild(newChat);
     });
 }
+
+
+
+
+
 
 // Call functions to create and append elements
 createChatWidget();
