@@ -31,14 +31,21 @@ const chatEndpointURL = 'https://us-central1-idh-chatbot-prod.cloudfunctions.net
 const chatList = [{
     role: "bot",
     text: "Aloha! How can I help you today? 🤙"
-}]
+}];
+
+// Initialize a global context object to track state
+let globalContext = {};
+
+// Function to update context after receiving response
+function updateContext(newContext) {
+    globalContext = { ...globalContext, ...newContext };
+}
 
 function scrollToBottom(containerId) {
     var container = document.getElementById(containerId);
     container.scrollTop = container.scrollHeight;
     console.log('scrolling down', container.scrollHeight);
 }
-
 
 function pushNewUserChat(chatText) {
     chatList.push({
@@ -52,25 +59,20 @@ function pushNewUserChat(chatText) {
     // Check the last bot message
     const lastBotMessage = chatList.slice().reverse().find(chat => chat.role === "bot").text;
 
-    // Start form capture process if we're at the appropriate step
     if (lastBotMessage.includes("Would you like to get in contact for booking an appointment?")) {
         if (chatText.toLowerCase() === "yes" || chatText.toLowerCase() === "yea" || chatText.toLowerCase() === "yeah") {
-            // User confirmed, start form capture
             initiateStreamConnection(chatEndpointURL, { query: chatText, context: 'start_form_capture' });
         } else {
-            // If user says no, end the flow
             initiateStreamConnection(chatEndpointURL, { query: chatText });
         }
-    } else if (lastBotMessage.includes("What is your name?") ||
+    } else if (globalContext.context === 'form_capture' || lastBotMessage.includes("What is your name?") ||
                lastBotMessage.includes("What is your phone number?") ||
                lastBotMessage.includes("What is your email address?") ||
                lastBotMessage.includes("What is the make of your car?") ||
                lastBotMessage.includes("What is the model of your car?") ||
                lastBotMessage.includes("What is the year of your car?")) {
-        // Handle form questions
-        initiateStreamConnection(chatEndpointURL, { query: chatText, context: 'form_capture' });
+        initiateStreamConnection(chatEndpointURL, { query: chatText, context: globalContext.context || 'form_capture' });
     } else if (lastBotMessage.includes("Is this correct? (yes/no)")) {
-        // Handle form confirmation
         if (chatText.toLowerCase() === "yes" || chatText.toLowerCase() === "yea" || chatText.toLowerCase() === "yeah") {
             initiateStreamConnection(chatEndpointURL, { query: chatText, context: 'confirm_form' });
         } else {
@@ -145,13 +147,14 @@ async function handleStreamResponse(response) {
                 chatInputEl.disabled = false;
                 isGeneratingResponse = false;
 
-                const formattedText = formatTextWithLinks(accumulatedResponse.replace(/\n/g, '<br>'));
-                responseElement.innerHTML = formattedText;
+                // Directly use plain text for the bot's response
+                responseElement.innerHTML = formatTextWithLinks(accumulatedResponse.replace(/\n/g, '<br>'));
 
                 chatList.push({
                     role: "bot",
-                    text: accumulatedResponse // Store the plain text response
+                    text: accumulatedResponse  // Store the plain text response
                 });
+
                 renderChats();
                 break;
             }
@@ -171,9 +174,6 @@ async function handleStreamResponse(response) {
         }
     }
 }
-
-
-
 
 
 function handlePlainTextResponse(text, isFinal) {
@@ -235,9 +235,10 @@ async function initiateStreamConnection(url, data) {
     }
 }
 
+
 // Function to submit a chat message and initiate stream connection
 function submitChat(text) {
-    initiateStreamConnection(chatEndpointURL, { query: text });
+    initiateStreamConnection(chatEndpointURL, { query: text, context: globalContext.context });
     scrollToBottom('conversation-scroll-container');
 }
 
@@ -435,7 +436,6 @@ function createChatWidget() {
 
     chatWidget.appendChild(chatChipsContainer);
 
-
     // chat input
     var chatInputContainer = document.createElement("div");
     chatInputContainer.setAttribute("id", "chat-container");
@@ -444,7 +444,6 @@ function createChatWidget() {
     var chatInputBar = document.createElement("div");
     chatInputBar.setAttribute("id", "chat-bar");
     chatInputBar.className = "flex space-x-2";
-
 
     function processChat() {
         const chatText = chatInputEl.value.trim();
@@ -460,7 +459,6 @@ function createChatWidget() {
         pushNewUserChat(chatText);
         chatInputEl.value = "";
         scrollToBottom('conversation-scroll-container');
-
     }
 
     chatSendBtn.addEventListener("click", processChat);
@@ -512,8 +510,6 @@ function toggleChatWidget() {
         }, 500); // Match the duration of the transition
     }
 }
-
-
 
 // Function to create and append the circle icon button
 function createCircleIcon() {
@@ -569,8 +565,6 @@ function renderChats() {
         convoContainer.appendChild(newChat);
     });
 }
-
-
 
 // Call functions to create and append elements
 createChatWidget();
