@@ -72,14 +72,16 @@ function pushNewUserChat(chatText) {
             initiateStreamConnection(chatEndpointURL, { query: chatText, context: currentContext });
         } else {
             // If user says no, end the flow
-            initiateStreamConnection(chatEndpointURL, { query: chatText, context: currentContext });
+            initiateStreamConnection(chatEndpointURL, { query: chatText, context: {"context": "handle_form_confirmation", "step": ""} });
         }
-    } else if (lastBotMessage.includes("What is your name?") ||
-               lastBotMessage.includes("What is your phone number?") ||
-               lastBotMessage.includes("What is your email address?") ||
+    } else if (chatText.toLowerCase() === "quit") {
+        initiateStreamConnection(chatEndpointURL, { query: chatText, context: {"context": "start_form_capture", "step": -1} });
+    } else if (lastBotMessage.includes("Great! Let's start with your name.") ||
+               lastBotMessage.includes("Awesome, now what is your phone number?") ||
+               lastBotMessage.includes("And your email address?") ||
                lastBotMessage.includes("What is the make of your car?") ||
-               lastBotMessage.includes("What is the model of your car?") ||
-               lastBotMessage.includes("What is the year of your car?")) {
+               lastBotMessage.includes("How about the model of your car?") ||
+               lastBotMessage.includes("Lastly, can you tell me the year of your car?")) {
         // Handle form questions
         currentContext.context = 'form_capture';
         initiateStreamConnection(chatEndpointURL, { query: chatText, context: currentContext });
@@ -144,68 +146,79 @@ chatInputEl.className = "flex h-10 w-full border border-input bg-background px-3
 chatInputEl.placeholder = "Type a message..."
 
 // Function to handle receiving text stream data
-// Modify handleStreamResponse function to parse JSON
 async function handleStreamResponse(response) {
     showLoadingDots();
     const reader = response.body.getReader();
     const decoder = new TextDecoder("utf-8");
-    let responseText = '';
     let accumulatedResponse = '';
-
-    const responseElement = createNewResponse('partial-response');
+    let responseText = '';
+    let responseElement = createNewResponse('partial-response');
 
     while (true) {
         hideLoadingDots();
         chatSendBtn.disabled = true;
         chatInputEl.disabled = true;
         isGeneratingResponse = true;
+
         try {
             const { done, value } = await reader.read();
             if (done) {
-                console.log("Stream done, accumulated response text:", accumulatedResponse);
-                // Re-enable input and send button after response generation is complete
+                console.log("Stream done, no more data.");
                 chatSendBtn.disabled = false;
                 chatInputEl.disabled = false;
                 isGeneratingResponse = false;
 
-                let responseData;
+                // Final parsing attempt if there's any remaining accumulated response
                 try {
-                    responseData = JSON.parse(accumulatedResponse);
-                    console.log("Parsed response data:", responseData); // Add debug log here
+                    if (accumulatedResponse.trim()) {
+                        let jsonResponse = JSON.parse(accumulatedResponse);
+                        responseText = jsonResponse.response;
+                        responseElement.innerHTML = formatTextWithLinks(responseText.replace(/\n/g, '<br>'));
+                        // Update context for form capture if necessary
+                        if (jsonResponse.context) {
+                            window.currentContext = jsonResponse.context;
+                        }
+                    }
                 } catch (error) {
-                    console.error('Error parsing JSON:', error);
+                    console.error('Error parsing final accumulated JSON:', error);
                     responseElement.innerHTML = formatTextWithLinks(accumulatedResponse.replace(/\n/g, '<br>'));
-                    chatList.push({
-                        role: "bot",
-                        text: accumulatedResponse  // Store plain text response
-                    });
-                    renderChats();
-                    break;
                 }
-
-                const botResponse = responseData.response;
-                const updatedContext = responseData.context;
-
-                // Update context globally for subsequent requests
-                window.currentContext = updatedContext;
 
                 chatList.push({
                     role: "bot",
-                    text: botResponse
+                    text: responseText
                 });
 
-                renderChats();
+                renderChats();  // Re-render after appending new bot response
                 break;
             }
-            responseText += decoder.decode(value, { stream: true });
-            accumulatedResponse += responseText;
 
-            responseElement.innerHTML += formatTextWithLinks(responseText.replace(/\n/g, '<br>'));
-            responseText = '';
+            // Decode the streaming chunk to text
+            accumulatedResponse += decoder.decode(value, { stream: true });
+
+            // Updated regex to match JSON objects
+            const regex = /\{(?:[^{}]|(\{[^{}]*\}))*\}/g;
+            let match;
+            while ((match = regex.exec(accumulatedResponse)) !== null) {
+                try {
+                    let jsonChunk = JSON.parse(match[0]);
+                    responseText += jsonChunk.response;
+                    responseElement.innerHTML = formatTextWithLinks(responseText.replace(/\n/g, '<br>'));
+
+                    // Update context for form capture if necessary
+                    if (jsonChunk.context) {
+                        window.currentContext = jsonChunk.context;
+                    }
+
+                    accumulatedResponse = accumulatedResponse.slice(match.index + match[0].length); // Clear processed part
+                } catch (e) {
+                    console.error('Partial JSON parse error:', e);
+                }
+            }
+
             scrollToBottom('conversation-scroll-container');
         } catch (error) {
             console.error('Error reading stream:', error);
-            // Re-enable input and send button even if there's an error
             chatSendBtn.disabled = false;
             chatInputEl.disabled = false;
             isGeneratingResponse = false;
@@ -213,9 +226,6 @@ async function handleStreamResponse(response) {
         }
     }
 }
-
-
-
 
 function handlePlainTextResponse(text, isFinal) {
     if (isFinal) {
@@ -463,7 +473,7 @@ function createChatWidget() {
     chatChipsContainer.setAttribute("id", "chips-container");
     chatChipsContainer.className = "flex flex-row space-x-0.5 sm:space-x-1 md:space-x-2 px-0.5 sm:px-1 md:px-2 pt-2";
 
-    const chipsText = ["Detailing", "Services", "Book Now"]
+    const chipsText = ["Detailing", "Ceramic Coating", "Book Now"]
     chipsText.forEach((text) => {
         var chatChip = document.createElement("div");
         chatChip.className = "text-gray-800 px-3 py-1 rounded-full flex-grow text-xs text-center border-4 border-gray-600 hover:bg-gray-600 hover:text-white cursor-pointer";
