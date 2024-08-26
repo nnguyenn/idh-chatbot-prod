@@ -47,6 +47,43 @@ function scrollToBottom(containerId) {
     console.log('scrolling down', container.scrollHeight);
 }
 
+// Function to create Yes/No buttons
+function createYesNoButtons() {
+    var buttonContainer = document.createElement("div");
+    buttonContainer.className = "flex space-x-2 mt-2";
+    
+    var yesButton = document.createElement("button");
+    yesButton.className = "bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded";
+    yesButton.innerText = "Yes";
+    yesButton.onclick = function() { handleButtonClick('yes'); };
+
+    var noButton = document.createElement("button");
+    noButton.className = "bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded";
+    noButton.innerText = "No";
+    noButton.onclick = function() { handleButtonClick('no'); };
+
+    buttonContainer.appendChild(yesButton);
+    buttonContainer.appendChild(noButton);
+
+    return buttonContainer;
+}
+
+function handleButtonClick(response) {
+    // Remove buttons after clicking by clearing the buttons container
+    const buttonContainer = document.querySelector('.flex.space-x-2.mt-2');
+    if (buttonContainer) {
+        buttonContainer.remove();
+    }
+
+    // Simulate user input and send response
+    pushNewUserChat(response);
+
+    // Re-render chat to reflect new state without buttons
+    renderChats();
+}
+
+
+
 let currentStep = 0; // Track the current step locally
 
 function pushNewUserChat(chatText) {
@@ -85,8 +122,7 @@ function pushNewUserChat(chatText) {
         // Handle form questions
         currentContext.context = 'form_capture';
         initiateStreamConnection(chatEndpointURL, { query: chatText, context: currentContext });
-    } else if (lastBotMessage.includes("Is this correct? (yes/no)")) {
-        // Handle form confirmation
+    } else if (lastBotMessage.includes("Is this correct?")) {
         if (chatText.toLowerCase() === "yes" || chatText.toLowerCase() === "yea" || chatText.toLowerCase() === "yeah") {
             currentContext.context = 'confirm_form';
             initiateStreamConnection(chatEndpointURL, { query: chatText, context: currentContext });
@@ -98,7 +134,7 @@ function pushNewUserChat(chatText) {
             renderChats();
             scrollToBottom('conversation-scroll-container');
         }
-    } else {
+    }  else {
         submitChat(chatText);
     }
 }
@@ -341,6 +377,15 @@ function createChatWidget() {
         .underline:hover {
             color: #476DC2;
         }
+
+        .button {
+            transition: background-color 0.3s ease;
+        }
+        
+        .button:hover {
+            background-color: #4a4a4a;
+        }
+        
         
         #notification-circle {
             position: fixed;
@@ -606,7 +651,7 @@ function renderChats() {
     // Clear the conversation container before re-rendering all messages
     convoContainer.innerHTML = "";
 
-    chatList.forEach((chat) => {
+    chatList.forEach((chat, index) => {
         var newChat = document.createElement("div");
 
         // Ensure chat.text is always a string
@@ -616,15 +661,28 @@ function renderChats() {
             chatText = JSON.stringify(chatText); // Convert object to string
         }
 
-        newChat.innerHTML = formatTextWithLinks(chatText.replace(/\n/g, '<br>')); // Replace newlines with <br> and format links
-
-        if (chat.role === "bot") {
+        // Check if the bot message includes the confirmation prompt
+        if (chat.role === "bot" && chatText.includes("Is this correct?")) {
+            // Include the confirmation message and buttons in the same chat bubble
             newChat.className = "rounded-tl-lg rounded-tr-lg rounded-br-lg p-2 bg-gray-800 text-white dark:bg-gray-800";
+            newChat.innerHTML = formatTextWithLinks(chatText.replace(/\n/g, '<br>'));
+
+            // Only add buttons if it's the last bot message and the buttons haven't been clicked yet
+            if (index === chatList.length - 1) {
+                newChat.appendChild(createYesNoButtons());
+            }
+        } else if (chat.role === "bot") {
+            newChat.className = "rounded-tl-lg rounded-tr-lg rounded-br-lg p-2 bg-gray-800 text-white dark:bg-gray-800";
+            newChat.innerHTML = formatTextWithLinks(chatText.replace(/\n/g, '<br>')); // Replace newlines with <br> and format links
         } else {
             newChat.className = "rounded-tl-lg rounded-tr-lg rounded-bl-lg p-2 bg-gray-100 dark:bg-gray-800";
+            newChat.innerHTML = formatTextWithLinks(chatText.replace(/\n/g, '<br>')); // Replace newlines with <br> and format links
         }
+
         convoContainer.appendChild(newChat);
     });
+
+    scrollToBottom('conversation-scroll-container'); // Ensure the chat scrolls to the latest message
 }
 
 
