@@ -115,7 +115,9 @@ function pushNewUserChat(chatText) {
     } else if (lastBotMessage.includes("Great! Let's start with your name.") ||
                lastBotMessage.includes("Awesome, now what is your phone number?") ||
                lastBotMessage.includes("And your email address?") ||
-               lastBotMessage.includes("Lastly, can you tell me what is the make, model, and year of your car?")) {
+               lastBotMessage.includes("Lastly, can you tell me what is the make, model, and year of your car?") ||
+               lastBotMessage.includes("Sorry, the phone number is invalid. Please try again.") ||
+               lastBotMessage.includes("Sorry, the email address is invalid. Please try again.")) {
         // Handle form questions
         currentContext.context = 'form_capture';
         initiateStreamConnection(chatEndpointURL, { query: chatText, context: currentContext });
