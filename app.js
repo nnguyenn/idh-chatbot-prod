@@ -44,7 +44,6 @@ function updateContext(newContext) {
 function scrollToBottom(containerId) {
     var container = document.getElementById(containerId);
     container.scrollTop = container.scrollHeight;
-    console.log('scrolling down', container.scrollHeight);
 }
 
 // Function to create Yes/No buttons
@@ -184,14 +183,69 @@ async function handleStreamResponse(response) {
     let accumulatedResponse = '';
     let responseText = '';
     let responseElement = createNewResponse('partial-response');
+    
+    // Queue to manage incoming chunks
+    let chunkQueue = [];
+
+    // Flag to indicate if processing is currently ongoing
+    let isProcessingChunk = false;
+
+    async function processQueue() {
+        if (isProcessingChunk) return;
+        isProcessingChunk = true;
+
+        while (chunkQueue.length > 0) {
+            const chunk = chunkQueue.shift();  // Get the first chunk from the queue
+            await handleChunk(chunk);
+        }
+
+        isProcessingChunk = false;
+    }
+
+    async function handleChunk(value) {
+        // Decode the chunk
+        const decodedChunk = decoder.decode(value, { stream: true });
+        accumulatedResponse += decodedChunk;
+
+        console.log("Received chunk:", decodedChunk);
+        console.log("Accumulated Response:", accumulatedResponse);
+
+        // Process all complete JSON objects within the accumulatedResponse
+        let regex = /{(?:[^{}]|(\{[^{}]*\}))*}/g;
+        let match;
+        while ((match = regex.exec(accumulatedResponse)) !== null) {
+            try {
+                let jsonChunk = JSON.parse(match[0]);
+                if (jsonChunk.response) {
+                    responseText += jsonChunk.response;
+                    responseElement.innerHTML = formatTextWithLinks(responseText.replace(/\n/g, '<br>'));
+                }
+
+                if (jsonChunk.context) {
+                    window.currentContext = jsonChunk.context;
+                }
+
+                accumulatedResponse = accumulatedResponse.slice(match.index + match[0].length);
+                regex.lastIndex = 0; // Reset regex index after modifying the string
+            } catch (e) {
+                console.error('Partial JSON parse error:', e);
+                // Adjust regex index to continue searching after the problematic area
+                regex.lastIndex = match.index + match[0].length;
+            }
+        }
+
+        // Ensure accumulatedResponse only has unprocessed parts left
+        accumulatedResponse = accumulatedResponse.trim();
+
+        scrollToBottom('conversation-scroll-container');
+    }
 
     while (true) {
         hideLoadingDots();
-        chatSendBtn.disabled = true;
-        chatInputEl.disabled = true;
-        isGeneratingResponse = true;
-
         try {
+            // Process the queue before reading the next chunk
+            await processQueue();
+
             const { done, value } = await reader.read();
             if (done) {
                 console.log("Stream done, no more data.");
@@ -200,55 +254,47 @@ async function handleStreamResponse(response) {
                 isGeneratingResponse = false;
                 chatInputEl.focus();
 
-                // Final parsing attempt if there's any remaining accumulated response
-                try {
-                    if (accumulatedResponse.trim()) {
+                // Process any remaining data in the queue
+                await processQueue();
+
+                if (accumulatedResponse.trim()) {
+                    try {
                         let jsonResponse = JSON.parse(accumulatedResponse);
                         responseText = jsonResponse.response;
-                        responseElement.innerHTML = formatTextWithLinks(responseText.replace(/\n/g, '<br>'));
-                        // Update context for form capture if necessary
+
+                        if (responseText && responseText.includes('undefined')) {
+                            console.error('Undefined detected in final response text:', responseText);
+                            responseText = "An error occurred while processing your request.";
+                        } else {
+                            responseElement.innerHTML = formatTextWithLinks(responseText.replace(/\n/g, '<br>'));
+                        }
+
                         if (jsonResponse.context) {
                             window.currentContext = jsonResponse.context;
                         }
+                    } catch (error) {
+                        console.error('Error parsing final accumulated JSON:', error);
+                        responseElement.innerHTML = "An error occurred while processing your request.";
                     }
-                } catch (error) {
-                    console.error('Error parsing final accumulated JSON:', error);
-                    responseElement.innerHTML = formatTextWithLinks(accumulatedResponse.replace(/\n/g, '<br>'));
+                } else {
+                    console.warn('No accumulated response to parse.');
+                    responseElement.innerHTML = "No response received. Please try again.";
                 }
 
                 chatList.push({
                     role: "bot",
-                    text: responseText
+                    text: responseText || "An error occurred, please try again."
                 });
 
-                renderChats();  // Re-render after appending new bot response
+                renderChats();
                 break;
             }
 
-            // Decode the streaming chunk to text
-            accumulatedResponse += decoder.decode(value, { stream: true });
+            // Add the chunk to the queue
+            chunkQueue.push(value);
+            // Ensure the queue is processed only when a chunk is added
+            if (!isProcessingChunk) await processQueue();
 
-            // Updated regex to match JSON objects
-            const regex = /\{(?:[^{}]|(\{[^{}]*\}))*\}/g;
-            let match;
-            while ((match = regex.exec(accumulatedResponse)) !== null) {
-                try {
-                    let jsonChunk = JSON.parse(match[0]);
-                    responseText += jsonChunk.response;
-                    responseElement.innerHTML = formatTextWithLinks(responseText.replace(/\n/g, '<br>'));
-
-                    // Update context for form capture if necessary
-                    if (jsonChunk.context) {
-                        window.currentContext = jsonChunk.context;
-                    }
-
-                    accumulatedResponse = accumulatedResponse.slice(match.index + match[0].length); // Clear processed part
-                } catch (e) {
-                    console.error('Partial JSON parse error:', e);
-                }
-            }
-
-            scrollToBottom('conversation-scroll-container');
         } catch (error) {
             console.error('Error reading stream:', error);
             chatSendBtn.disabled = false;
@@ -259,26 +305,10 @@ async function handleStreamResponse(response) {
     }
 }
 
-function handlePlainTextResponse(text, isFinal) {
-    if (isFinal) {
-        const convoContainer = document.getElementById("conversation-container");
-        while (convoContainer.lastChild && convoContainer.lastChild.className.includes('partial-response')) {
-            convoContainer.removeChild(convoContainer.lastChild);
-        }
-    }
 
-    const responseElement = createNewResponse(isFinal ? '' : 'partial-response');
-    console.log("Final formatted response:", formatTextWithLinks(accumulatedResponse));
 
-    responseElement.innerHTML = formatTextWithLinks(text);
 
-    chatList.push({
-        role: "bot",
-        text: text
-    });
 
-    scrollToBottom('conversation-scroll-container');
-}
 
 function formatTextWithLinks(text) {
     // Create regex patterns for matching phone numbers, addresses, and book now links
