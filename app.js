@@ -201,6 +201,7 @@ async function handleStreamResponse(response) {
                 chatSendBtn.disabled = false;
                 chatInputEl.disabled = false;
                 isGeneratingResponse = false;
+                chatInputEl.focus();
 
                 // Final parsing attempt if there's any remaining accumulated response
                 try {
