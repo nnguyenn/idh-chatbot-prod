@@ -138,9 +138,6 @@ function pushNewUserChat(chatText) {
 }
 
 
-
-
-
 function createNewResponse(extraClass = '') {
     var convoContainer = document.getElementById("conversation-container");
 
