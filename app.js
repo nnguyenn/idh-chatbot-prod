@@ -67,6 +67,15 @@ function createYesNoButtons() {
     return buttonContainer;
 }
 
+function createRequestAppointmentButton() {
+    var button = document.createElement("button");
+    button.className = "bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-2 w-full";
+    button.innerText = "Request Appointment";
+    button.onclick = function() { handleButtonClick('Request Appointment'); };
+    return button;
+}
+
+
 function handleButtonClick(response) {
     // Remove buttons after clicking by clearing the buttons container
     const buttonContainer = document.querySelector('.flex.space-x-2.mt-2');
@@ -101,7 +110,7 @@ function pushNewUserChat(chatText) {
 
     // Start form capture process if we're at the appropriate step
     if (lastBotMessage.includes("Would you like to get in contact for booking an appointment?")) {
-        if (chatText.toLowerCase() === "yes" || chatText.toLowerCase() === "yea" || chatText.toLowerCase() === "yeah") {
+        if (chatText.toLowerCase() === "yes" || chatText.toLowerCase() === "yea" || chatText.toLowerCase() === "yeah" || chatText.toLowerCase() === "request appointment") {
             // User confirmed, start form capture
             currentContext.context = 'start_form_capture';
             currentContext.step = 0; // Reset to initial step for form capture
@@ -689,33 +698,30 @@ function renderChats() {
             chatText = JSON.stringify(chatText); // Convert object to string
         }
 
-        // Check if the bot message includes the confirmation prompt
-        if (chat.role === "bot" && chatText.includes("Is this correct?")) {
-            // Include the confirmation message and buttons in the same chat bubble
+        if (chat.role === "bot") {
             newChat.className = "rounded-tl-lg rounded-tr-lg rounded-br-lg p-2 bg-gray-800 text-white dark:bg-gray-800";
             newChat.innerHTML = formatTextWithLinks(chatText.replace(/\n/g, '<br>'));
 
-            // Only add buttons if it's the last bot message and the buttons haven't been clicked yet
-            if (index === chatList.length - 1) {
-                newChat.appendChild(createYesNoButtons());
+            // Check if this is the ceramic coating response
+            if (chatText.includes("Would you like to get in contact for booking an appointment?")) {
+                // Append the button to the existing content
+                newChat.appendChild(createRequestAppointmentButton());
+            } else if (chatText.includes("Is this correct?")) {
+                // Only add buttons if it's the last bot message and the buttons haven't been clicked yet
+                if (index === chatList.length - 1) {
+                    newChat.appendChild(createYesNoButtons());
+                }
             }
-        } else if (chat.role === "bot") {
-            newChat.className = "rounded-tl-lg rounded-tr-lg rounded-br-lg p-2 bg-gray-800 text-white dark:bg-gray-800";
-            newChat.innerHTML = formatTextWithLinks(chatText.replace(/\n/g, '<br>')); // Replace newlines with <br> and format links
         } else {
             newChat.className = "rounded-tl-lg rounded-tr-lg rounded-bl-lg p-2 bg-gray-100 dark:bg-gray-800";
-            newChat.innerHTML = formatTextWithLinks(chatText.replace(/\n/g, '<br>')); // Replace newlines with <br> and format links
+            newChat.innerHTML = formatTextWithLinks(chatText.replace(/\n/g, '<br>'));
         }
 
         convoContainer.appendChild(newChat);
     });
 
-    scrollToBottom('conversation-scroll-container'); // Ensure the chat scrolls to the latest message
+    scrollToBottom('conversation-scroll-container');
 }
-
-
-
-
 
 
 // Call functions to create and append elements
